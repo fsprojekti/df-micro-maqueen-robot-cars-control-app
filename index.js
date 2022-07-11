@@ -6,7 +6,7 @@ const axios = require('axios').default;
 require('console-stamp')(console, '[HH:MM:ss.l]');
 
 // open file with configuration data
-const fs = require('fs');
+//const fs = require('fs');
 const config = require("./config.json");
 
 // global variables
@@ -24,17 +24,17 @@ app.get('/', function (req, res) {
 });
 
 // API endpoint that returns current value of the requests queue
-app.get('/get/requestsQueue', function (req, res) {
+app.get('/requestsQueue', function (req, res) {
 
-    console.log("received a request to the endpoint /get/requestsQueue");
+    console.log("received a request to the endpoint /requestsQueue");
     res.send(JSON.stringify(requestsQueue));
 
 });
 
 // API endpoint that returns current value of the cars data
-app.get('/get/cars', function (req, res) {
+app.get('/cars', function (req, res) {
 
-    console.log("received a request to the endpoint /get/cars");
+    console.log("received a request to the endpoint /cars");
     res.send(JSON.stringify(cars));
 
 });
@@ -44,18 +44,23 @@ app.get('/requestTransfer', function (req, res) {
 
     console.log("received a request to the endpoint /requestTransfer");
 
-    if (!req.query.startLocation || !req.query.endLocation || !req.query.id) {
+    if (!req.query.id || !req.query.startLocation || !req.query.endLocation) {
         console.log("Error, missing id and/or startLocation and/or endLocation.");
         res.send("Error, missing id and/or startLocation and/or endLocation.");
     } else {
         // extract data from the request = parcel id and start and end locations for the requested transfer
-        let id = JSON.parse(req.query.id);
+        let parcelId = JSON.parse(req.query.id);
         let startLocation = JSON.parse(req.query.startLocation);
         let endLocation = JSON.parse(req.query.endLocation);
 
         // create a request object and add it to the queue
-        let request = {"parcelId": id, "startLocation": startLocation, "endLocation": endLocation};
-        requestsQueue.push(request);
+        let reqObject = {}
+        reqObject.parcelId = parcelId
+        reqObject.startLocation = startLocation;
+        reqObject.endLocation = endLocation;
+        reqObject.status = "queue"; // "queue": waiting in the queue; "transfer": a car is on the move to fulfill a request
+
+        requestsQueue.push(reqObject);
 
         console.log("Current requests queue:" + JSON.stringify(requestsQueue));
 
@@ -68,22 +73,15 @@ app.get('/transferCompleted', function (req, res) {
 
     console.log("received a request to the endpoint /transferCompleted");
 
-    if (!req.query.id || !req.query.endLocation) {
-        console.log("Error, missing id.");
-        res.send("Error, missing startLocation and/or endLocation.");
-    } else {
-        // extract data from the request = start and end locations for the requested transfer
-        let startLocation = JSON.parse(req.query.startLocation);
-        let endLocation = JSON.parse(req.query.endLocation);
+    let robotCarIp = req.ip.substring(7,req.ip.length);
+    console.log(robotCarIp);
 
-        // create a request object and add it to the queue
-        let request = {"startLocation": startLocation, "endLocation": endLocation};
-        requestsQueue.push(request);
+    // find the request in the queue and delete it
+    let index = requestsQueue.findIndex(item => item.url = robotCarIp);
+    requestsQueue.splice(index,1);
 
-        console.log("Current requests queue:" + JSON.stringify(requestsQueue));
+    res.send("/transferCompleted endpoint processed successfully");
 
-        res.send("/requestTransfer endpoint processed successfully");
-    }
 });
 
 // start the server
@@ -104,7 +102,7 @@ function initCars() {
         car.url = config.robotCarsIpAddresses[i]
         car.startLocation = config.robotCarsStartLocations[i]
         car.location = config.robotCarsStartLocations[i]
-        car.available = false;
+        car.available = true;
         cars.push(car);
     }
     console.log("Initial state of robot cars:" + JSON.stringify(cars));
@@ -113,6 +111,7 @@ function initCars() {
 // randomly select a car for the requested transfer among the cars that are currently available
 function selectCar() {
 
+    // make a subset of cars array based on the availability
     let carsAvailable = cars.filter(function (car) {
         return car.available === true;
     });
@@ -121,6 +120,7 @@ function selectCar() {
     let randomNumber = Math.floor(Math.random() * (carsAvailable.length));
     // console.log(randomNumber);
 
+    // randomly select a car for a transfer
     return carsAvailable[randomNumber];
 }
 
@@ -129,25 +129,31 @@ setInterval(function () {
 
     if (requestsQueue.length > 0) {
         // requests are processed on a FIFO (first in first out) principle
-        let request = requestsQueue[0];
         // select a robot car
         let car = selectCar();
+        // TODO: delete this statement, it is used later in the response from the axios GET method call
+        // set which car was selected for the transfer (url of the car)
+        // carSelected is hardcoded to the localhost (for testing purposes)
+        requestsQueue[0].carSelected = config.robotCarsIpAddresses[4];
+
         if (car !== undefined) {
             console.log("selected a car:" + JSON.stringify(car));
             // make an axios request to the robot car HTTP API
-            console.log("axios GET request URL: " + car.url + '/move?startLocation=' + request.startLocation + '&endLocation=' + request.endLocation);
-            axios.get(car.url + '/move?startLocation' + request.startLocation + '&endLocation=' + request.endLocation)
+            console.log("axios GET request URL: " + car.url + '/move?startLocation=' + requestsQueue[0].startLocation + '&endLocation=' + requestsQueue[0].endLocation);
+            axios.get(car.url + '/move?startLocation' + requestsQueue[0].startLocation + '&endLocation=' + requestsQueue[0].endLocation)
                 .then(function (response) {
-                    // handle successfull request
+                    // handle successful request
                     let responseData = JSON.parse(response.data);
-                    // if selected car is free, the transfer begins, the availability of the car must be set to false and the request is deleted from the queue
+                    // if the selected car is free, the transfer begins, the availability of the car must be set to false and the request is deleted from the queue
                     if (responseData.available) {
                         // find the index of the car in the cars array
                         let carIndex = cars.findIndex(x => x.id === car.id);
                         // update the availability parameter
                         cars[carIndex].available = false;
-                        // delete the request from the queue
-                        requestsQueue.shift();
+                        // set the status of the request to "transfer" - the request is only deleted from the queue after the transfer is completed
+                        requestsQueue[0].status = "transfer";
+                        // set which car was selected for the transfer (url of the car)
+                        requestsQueue[0].carSelected = car.url;
                     }
                     // the car is not available, update its availability
                     else {
