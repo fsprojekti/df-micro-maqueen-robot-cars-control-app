@@ -12,6 +12,8 @@ const config = require("./config.json");
 // global variables
 let cars = [];
 let requestsQueue = [];
+let parkingAreas = [];
+let parkingAreasTransfersQueue = [];
 
 // #### API ENDPOINTS ####
 
@@ -36,6 +38,15 @@ app.get('/cars', function (req, res) {
 
     console.log("received a request to the endpoint /cars");
     res.send(JSON.stringify(cars));
+
+});
+
+
+// API endpoint that returns current value of the cars data
+app.get('/parkingAreas', function (req, res) {
+
+    console.log("received a request to the endpoint /parkingAreas");
+    res.send(JSON.stringify(parkingAreas));
 
 });
 
@@ -73,12 +84,66 @@ app.get('/transferCompleted', function (req, res) {
 
     console.log("received a request to the endpoint /transferCompleted");
 
-    let robotCarIp = req.ip.substring(7,req.ip.length);
+    let robotCarIp = req.ip.substring(7, req.ip.length);
     console.log(robotCarIp);
 
     // find the request in the queue and delete it
     let index = requestsQueue.findIndex(item => item.url = robotCarIp);
-    requestsQueue.splice(index,1);
+    requestsQueue.splice(index, 1);
+
+    // find the car in the cars array
+    let carArr = cars.filter(function (car) {
+        return car.url === robotCarIp;
+    });
+    // filter method returns array with one item - access it
+    let car = carArr[0];
+
+    // TODO: does the car automatically move to the parking area? or does he wait for the next transfer at the production area?
+    // TODO: for now: the car moves to the parking areas
+
+    // select a free parking area
+    let parkingArea = selectParkingArea();
+    if (parkingArea !== undefined) {
+
+        // call car's HTTP API endpoint /move
+        console.log("selected the area:" + JSON.stringify(parkingArea));
+        // make an axios request to the robot car HTTP API
+        console.log("axios GET request URL: " + car.url + '/move?startLocation=' + car.location + '&endLocation=' + parkingArea.location);
+        axios.get(car.url + '/move?startLocation' + car.location + '&endLocation=' + parkingArea.location)
+            .then(function (response) {
+                // handle successful request
+                let responseData = JSON.parse(response.data);
+                // if the selected car is free, the transfer begins, the availability of the car must be set to false and the request is deleted from the queue
+                if (responseData.available) {
+                    // find the index of the car in cars array
+                    let carIndex = cars.findIndex(item => item.url = car.url);
+                    // update the availability parameter
+                    cars[carIndex].available = false;
+
+                    // find the index of the parking area in parkingAreas array
+                    let parkingAreaIndex = parkingAreas.findIndex(x => x.id === parkingArea.id);
+                    // update the availability parameter
+                    parkingArea[parkingAreaIndex].available = false;
+
+                }
+                // the car is not available, update its availability
+                else {
+                    // find the index of the car in the cars array
+                    let carIndex = cars.findIndex(x => x.id === car.id);
+                    // update the availability parameter
+                    cars[carIndex].available = false;
+                }
+            })
+            .catch(function (error) {
+                // handle error
+                console.log("error when calling robot car " + car.id + " to url " + car.url + ": " + error);
+            });
+
+    }
+    // no free parking areas found, put the data to a parking area transfer queue
+    else {
+        parkingAreasTransfersQueue.push({"carIp": robotCarIp});
+    }
 
     res.send("/transferCompleted endpoint processed successfully");
 
@@ -89,6 +154,8 @@ app.listen(config.nodejsPort, function () {
 
     //initialize an array for robot cars' data
     initCars();
+    //initialize an array for parkingAreas' data
+    initParkingAreas();
 
     console.log('Robot Cars Control Node.js server listening on port ' + config.nodejsPort + '!');
 });
@@ -108,6 +175,19 @@ function initCars() {
     console.log("Initial state of robot cars:" + JSON.stringify(cars));
 }
 
+// initialize parking areas array when the server starts
+function initParkingAreas() {
+
+    for (let i = 0; i < config.parkingAreasLocations.length; i++) {
+        let parkingArea = {};
+        parkingArea.id = i + 1;
+        parkingArea.location = config.parkingAreasLocations[i]
+        parkingArea.available = true;
+        parkingAreas.push(parkingArea);
+    }
+    console.log("Initial state of parking areas:" + JSON.stringify(parkingAreas));
+}
+
 // randomly select a car for the requested transfer among the cars that are currently available
 function selectCar() {
 
@@ -116,12 +196,29 @@ function selectCar() {
         return car.available === true;
     });
 
-    // generate a random number between 0 and number of available cars - 1
+    // generate a random number between 0 and number of available cars
     let randomNumber = Math.floor(Math.random() * (carsAvailable.length));
     // console.log(randomNumber);
 
     // randomly select a car for a transfer
     return carsAvailable[randomNumber];
+}
+
+
+// randomly select a parking area among the areas that are currently available
+function selectParkingArea() {
+
+    // make a subset of parking areas array based on the availability
+    let parkingAreaAvailable = parkingAreas.filter(function (parkingArea) {
+        return parkingArea.available === true;
+    });
+
+    // generate a random number between 0 and number of available parking areas
+    let randomNumber = Math.floor(Math.random() * (parkingAreaAvailable.length));
+    // console.log(randomNumber);
+
+    // randomly select a parking area for a transfer
+    return parkingAreaAvailable[randomNumber];
 }
 
 // periodically check the requests queue and order a transfer to the randomly selected available robot car
