@@ -21,7 +21,7 @@ See: https://github.com/fsprojekti/df_micro_maqueen-mbits-esp32_arduino_app
 |----|----|-----------|
 |/cars|array of JSON object car|array of all active cars|
 |/requestsQueue|array of JSON object request|array of all active transfers requests|
-|/requestTransfer|JSON object {"parcelId": id, "startLocation": a, "endLocation": b}|sent by a parcel|
+|/request|JSON object {"parcelId": id, "startLocation": a, "endLocation": b}|sent by a parcel|
 |/transferred completed|/|sent by a car when it reaches the location|
 
 

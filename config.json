@@ -1,6 +1,14 @@
 {
-  "robotCarsIpAddresses": ["193.2.80.28","193.2.80.29","193.2.80.30","193.2.80.31","127.0.0.1"],
-  "robotCarsStartLocations": [1,2,3,5,6],
+  "robotCars": [{"ip":"193.2.80.28","startLocation": 6},
+                {"ip":"193.2.80.29","startLocation": 7},
+                {"ip":"193.2.80.30","startLocation": 8},
+                {"ip":"193.2.80.31","startLocation": 9},
+                {"ip":"127.0.0.1","startLocation": 10}],
+  "plants": [{"ip":"193.2.80.40","location": 1},
+                          {"ip":"193.2.80.41","location": 2},
+                          {"ip":"193.2.80.42","location": 3},
+                          {"ip":"193.2.80.43","location": 4},
+                          {"ip":"193.2.80.50","location": 5}],
   "parkingAreasLocations": [5,6],
   "nodejsPort": 3000
 }
