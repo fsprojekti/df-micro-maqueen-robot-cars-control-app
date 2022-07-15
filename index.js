@@ -243,7 +243,7 @@ app.get('/report', function (req, res) {
             res.send({"state": "error, task not found"});
         }
     }
-    
+
     res.send("/report endpoint processed successfully");
 
 });
