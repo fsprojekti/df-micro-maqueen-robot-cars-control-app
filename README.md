@@ -31,7 +31,7 @@ See: https://github.com/fsprojekti/df_micro_maqueen-mbits-esp32_arduino_app
 |name|type|description|value|
 |----|----|-----------|-----|
 |requestsQueue|array(request)|array of all active transfer requests||
-|request|JSON object of request|data needed to fulfill the request||
+|request|JSON object|data needed to fulfill the request||
 |request.taskId|int|unique task id|defined by carriers management, starts from 0|
 |request.packageId|int|id of the package that sent the request|defined by the package|
 |request.packageUrl|int|url (ip+port) of the package that sent the request|read from the request|
@@ -39,14 +39,14 @@ See: https://github.com/fsprojekti/df_micro_maqueen-mbits-esp32_arduino_app
 |request.targetLocation|int|id of the target location based on the predefined grid|from 1 to 7|
 |request.state|string|state of the request|queue<br>transportToSourceLocation<br>sourceLocation<br>sourceDispatchPending<br>sourceDispatchFinished<br>transportToTargetLocation<br>targetLocation<br>targetDispatchPending<br>targetDispatchFinished<br>transportToParking<br>transportFinishedPending|
 |cars|array(car)|array of robot cars in operation||
-|car|JSON object of car||
+|car|JSON object||
 |car.id|string|unique car id|starts from 0|
 |car.url|string|car IP address on local WiFi network|defined in config.json file|
 |car.startLocation|number|car location when the experiment starts|1 to 4: production areas, 5: warehouse (master plant), 6, to 9: parking areas|
 |car.location|number|current car location|1 to 4: production areas, 5: warehouse (master plant), 6, to 9: parking areas|
 |car.available|boolean|availability to carry out a transfer|true / false |
 |parkingAreas|array(parkingArea)|array of parking areas in operation||
-|parkingArea|JSON object of parkingArea||
+|parkingArea|JSON object||
 |parkingArea.id|string|unique parkingArea id|defined by carriers management, starts from 0|
-|parkingArea.location|parkingArea location|6 to 9|
+|parkingArea.location|int|parkingArea location|6 to 9|
 |parkingArea.available|boolean|availability to accept a car for parking|true / false |
