@@ -5,10 +5,10 @@
                 {"ip":"193.2.80.31","startLocation": 9},
                 {"ip":"127.0.0.1","startLocation": 10}],
   "plants": [{"ip":"193.2.80.40","location": 1},
-                          {"ip":"193.2.80.41","location": 2},
-                          {"ip":"193.2.80.42","location": 3},
-                          {"ip":"193.2.80.43","location": 4},
-                          {"ip":"193.2.80.50","location": 5}],
-  "parkingAreasLocations": [5,6],
+              {"ip":"193.2.80.41","location": 2},
+              {"ip":"193.2.80.42","location": 3},
+              {"ip":"193.2.80.43","location": 4},
+              {"ip":"193.2.80.50","location": 5}],
+  "parkingAreasLocations": [6,7,8,9,10],
   "nodejsPort": 3000
 }

@@ -99,8 +99,8 @@ app.get('/getTask', function (req, res) {
         let taskId = JSON.parse(req.taskId.source);
 
         // find the car in the cars array
-        let requestArr = requestsQueue.filter(function () {
-            return requestArr.taskId === taskId;
+        let requestArr = requestsQueue.filter(function (request) {
+            return request.taskId === taskId;
         });
 
         // filter method returns array with one item - access it
@@ -114,7 +114,7 @@ app.get('/getTask', function (req, res) {
     }
 });
 
-// API endpoint called by a car that he has reached the target location
+// API endpoint called by a car that he has reached the location
 app.get('/report', function (req, res) {
 
     console.log("received a request to the endpoint /report");
@@ -128,8 +128,8 @@ app.get('/report', function (req, res) {
         let state = JSON.parse(req.taskId.state);
 
         // find the request in the queue
-        let requestArr = requestsQueue.filter(function () {
-            return requestArr.taskId === taskId;
+        let requestArr = requestsQueue.filter(function (request) {
+            return request.taskId === taskId;
         });
         if (requestArr.length > 0) {
             // filter method returns array with one item - access it
@@ -137,7 +137,7 @@ app.get('/report', function (req, res) {
             // find the index of the request in the queue
             let requestIndex = requestsQueue.findIndex(item => item.taskId = taskId);
 
-            // if there was an error while moving the car, we revert the state of the request to the previous one, to allow for new attempt to move the package
+            // if there was an error while moving the car, we revert the state of the request to the previous one, to allow for a new attempt to move the package
             if (state === "error") {
                 if (request.state === "transferToSourceLocation")
                     request.state = "queue";
@@ -146,7 +146,7 @@ app.get('/report', function (req, res) {
                 else if (request.state === "transferToParking")
                     request.state = "targetDispatchFinished";
             }
-            // the car reached the target location
+            // the car has really reached the location
             else if (state === "done") {
 
                 if (request.state === "transferToSourceLocation") {
@@ -154,30 +154,29 @@ app.get('/report', function (req, res) {
                     // send /dispatchRequest to the source plant
 
                     // make an axios request to the source plant HTTP API
-                    console.log("axios GET request URL: " + config.plants[request.sourceLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId);
+                    console.log("axios GET request URL: " + config.plants[request.sourceLocation - 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId);
                     axios.get(config.plants[request.sourceLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId)
                         .then(function (response) {
                             // handle successful request
                             let responseData = JSON.parse(response.data);
-                            // the master plant rejects the request
+                            // the source plant rejects the request
                             if (responseData.state === "reject") {
 
-                                console.log("source plant " + config.plants[request.sourceLocation + 1].ip + " rejected the request");
-                                // TODO: WHAT TO DO NOW??
+                                console.log("source plant " + config.plants[request.sourceLocation - 1].ip + " rejected the request");
                                 request.state = "sourceDispatchPending";
                             }
-                            // the master plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
+                            // the source plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
                             else {
-                                request.masterPlantDispatchId = responseData.dispatchTaskId;
-                                console.log("source plant " + config.plants[request.sourceLocation + 1].ip + " accepted the request");
+                                request.sourcePlantDispatchId = responseData.dispatchTaskId;
+                                console.log("source plant " + config.plants[request.sourceLocation - 1].ip + " accepted the request");
                             }
-
                             // update the request data in the queue
                             requestsQueue[requestIndex] = request;
                         })
                         .catch(function (error) {
                             // handle error
                             console.log("error when calling source plant " + config.plants[request.sourceLocation + 1].ip + ": " + error);
+                            request.state = "sourceDispatchPending";
                         });
 
                 } else if (request.state === "transferToTargetLocation") {
@@ -189,25 +188,26 @@ app.get('/report', function (req, res) {
                         .then(function (response) {
                             // handle successful request
                             let responseData = JSON.parse(response.data);
-                            // the master plant rejects the request
+                            // the target plant rejects the request
                             if (responseData.state === "reject") {
 
                                 console.log("target plant " + config.plants[request.targetLocation + 1].ip + " rejected the request");
-                                // TODO: WHAT TO DO NOW??
                                 request.state = "targetDispatchPending";
                             }
-                            // the master plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
+                            // the target plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
                             else {
                                 request.masterPlantDispatchId = responseData.dispatchTaskId;
                                 console.log("target plant " + config.plants[request.targetLocation + 1].ip + " accepted the request");
                             }
-
                             // update the request data in the queue
                             requestsQueue[requestIndex] = request;
                         })
                         .catch(function (error) {
                             // handle error
                             console.log("error when calling target plant " + config.plants[request.targetLocation + 1].ip + ": " + error);
+                            request.state = "targetDispatchPending";
+                            // update the request data in the queue
+                            requestsQueue[requestIndex] = request;
                         });
                 } else if (request.state === "transferToParking") {
                     // send /transportFinished request to the package
@@ -230,6 +230,10 @@ app.get('/report', function (req, res) {
                         .catch(function (error) {
                             // handle error
                             console.log("error when calling package " + request.packageUrl + ": " + error);
+
+                            request.state = "packageResponsePending";
+                            // update the request data in the queue
+                            requestsQueue[requestIndex] = request;
                         });
                 }
             } else {
@@ -323,10 +327,10 @@ function selectParkingArea() {
 // periodically check the requests queue and order a transfer to the randomly selected available robot car
 setInterval(function () {
 
-    // select a request to process --> choose from request that are in one of three states: "queue", "sourceDispatchFinished", "targetDispatchFinished"
+    // select a request to process --> choose from requests that are in one of three states: "queue", "sourceDispatchFinished", "targetDispatchFinished"
     // requests are processed on a FIFO (first in first out) principle
-    let requestArr = requestsQueue.filter(function () {
-        return requestArr.state === "queue" || requestArr.state === "sourceDispatchFinished" || requestArr.state === "targetDispatchFinished";
+    let requestArr = requestsQueue.filter(function (request) {
+        return request.state === "queue" || request.state === "sourceDispatchFinished" || request.state === "targetDispatchFinished";
     });
 
     // a request was found, start processing it
@@ -352,15 +356,11 @@ setInterval(function () {
             // carSelected is hardcoded to the localhost (for testing purposes)
             request.carSelected = config.robotCars[4].ip;
 
-            if (car !== undefined) {
-                // request.carSelected = car.url;
-                console.log("selected a car:" + JSON.stringify(car));
-
-            } else
-                console.log("no available cars to carry out the transfer")
         }
         // if a car was selected, proceed with the move
         if (car !== undefined) {
+
+            console.log("selected a car:" + JSON.stringify(car));
 
             // build axios GET request depending on the current state of the request
             let axiosGetUrl = "";
@@ -370,65 +370,61 @@ setInterval(function () {
                 axiosGetUrl = car.url + '/move?sourceLocation' + car.sourceLocation + '&targetLocation=' + request.targetLocation + '&taskId=' + request.taskId;
             } else if (request.state === "targetDispatchFinished") {
                 // move the car to a free parking area
-                // TODO select a parking area
                 // select a free parking area
                 let parkingArea = selectParkingArea();
                 if (parkingArea !== undefined) {
                     axiosGetUrl = car.url + '/move?sourceLocation' + car.targetLocation + '&targetLocation=' + parkingArea.location + '&taskId=' + request.taskId;
-                }
-                else {
-
-                    // do nothing, make a new attempt later
+                } else {
+                    // do nothing, make a new attempt in next setInterval iteration
                     axiosGetUrl = "";
                 }
             }
 
             console.log("axios GET request URL: " + axiosGetUrl);
-            if(axiosGetUrl !== "") {
-            axios.get(axiosGetUrl)
-                .then(function (response) {
-                    // handle successful request
-                    let responseData = JSON.parse(response.data);
-                    // if the selected car is free, the transfer begins, the availability of the car must be set to false and the request is deleted from the queue
-                    if (responseData.status === "accept") {
-                        // find the index of the car in the cars array
-                        let carIndex = cars.findIndex(x => x.id === car.id);
-                        // update the availability parameter
-                        cars[carIndex].available = false;
+            if (axiosGetUrl !== "") {
+                axios.get(axiosGetUrl)
+                    .then(function (response) {
+                        // handle successful request
+                        let responseData = JSON.parse(response.data);
+                        // if the selected car is free, the transfer begins, the availability of the car must be set to false and the request is deleted from the queue
+                        if (responseData.status === "accept") {
+                            // find the index of the car in the cars array
+                            let carIndex = cars.findIndex(x => x.id === car.id);
+                            // update the availability parameter
+                            cars[carIndex].available = false;
 
-                        // if previous state of the request was "queue", it now changes to "transportToSourceLocation"
-                        if (request.state === "queue") {
-                            request.state = "transportToSourceLocation";
-                        } else if (request.state === "sourceDispatchFinished") {
-                            request.state = "transportToTargetLocation";
-                        } else if (request.state === "targetDispatchFinished") {
-                            request.state = "transportToParking";
+                            // if previous state of the request was "queue", it now changes to "transportToSourceLocation"
+                            if (request.state === "queue") {
+                                request.state = "transportToSourceLocation";
+                            } else if (request.state === "sourceDispatchFinished") {
+                                request.state = "transportToTargetLocation";
+                            } else if (request.state === "targetDispatchFinished") {
+                                request.state = "transportToParking";
+                            }
+
+                            // find the index of the request in the request array
+                            let requestIndex = requestsQueue.findIndex(x => x.taskId === request.taskId);
+                            // update the request
+                            requestsQueue[requestIndex] = request;
+
                         }
-
-                        // find the index of the request in the request array
-                        let requestIndex = requestsQueue.findIndex(x => x.taskId === request.taskId);
-                        // update the request
-                        requestsQueue[requestIndex] = request;
-
-                    }
-                    // the car is not available, update its availability
-                    else {
-                        // find the index of the car in the cars array
-                        let carIndex = cars.findIndex(x => x.id === car.id);
-                        // update the availability parameter
-                        cars[carIndex].available = false;
-                    }
-                })
-                .catch(function (error) {
-                    // handle error
-                    console.log("error when calling robot car " + car.id + " to url " + car.url + ": " + error);
-                });
-            }
-            else {
-                console.log("no parking area available");
+                        // the car is not available, update its availability
+                        else {
+                            // find the index of the car in the cars array
+                            let carIndex = cars.findIndex(x => x.id === car.id);
+                            // update the availability parameter
+                            cars[carIndex].available = false;
+                        }
+                    })
+                    .catch(function (error) {
+                        // handle error
+                        console.log("error when calling robot car " + car.id + " to url " + car.url + ": " + error);
+                    });
+            } else {
+                console.log("no parking area available, will try again later");
             }
         } else {
-            console.log("no car was selected for the move");
+            console.log("no available cars to carry out the move");
         }
     } else
         console.log("no requests to process");
