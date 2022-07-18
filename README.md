@@ -17,30 +17,36 @@ See: https://github.com/fsprojekti/df_micro_maqueen-mbits-esp32_arduino_app
 
 
 ## HTTP API
-|endpoint|parameters|description|
-|----|----|-----------|
-|/cars|array of JSON object car|array of all active cars|
-|/requestsQueue|array of JSON object request|array of all active transfers requests|
-|/request|{"packageId": id, "source": a, "target": b}|sent by a parcel|
-|/report|{"state:" accept/reject, "taskId": a}}|sent by a car when it reaches the location|
-|/getTask|{"taskId": id}|return the current state of the task|
+|endpoint|description|parameters|returns|
+|----|----|-----------|------|
+|<code>/cars</code>|get data on active robot cars|/|array of JSON objects "car"|
+|<code>/parkingAreas</code>|get data on active parking areas|/|array of JSON objects "parkingArea"|
+|<code>/requestsQueue</code>|get data on active transfers requests|/|array of JSON objects "request"|
+|<code>/request</code>|sent by a parcel to request a transport|<code>{"packageId": id, "source": a, "target": b}</code>|{status (accept, reject), queueIndex, taskId}\
+|<code>/report</code>|sent by a car when it reaches a location|<code>{"state:" accept/reject, "taskId": </code>|{state: success/error}
+|<code>/getTask</code>|get current state of the task|<code>{"taskId": id}</code>|one of 9 states in string format|
 
 ## Variables
 
 |name|type|description|value|
 |----|----|-----------|-----|
-|requestsQueue|array(request)|array of all active transfer requests|/|
-|request|JSON object of request|data needed to fulfill the request|/|
-|request.taskId|int|unique task id|starts from 0|
+|requestsQueue|array(request)|array of all active transfer requests||
+|request|JSON object of request|data needed to fulfill the request||
+|request.taskId|int|unique task id|defined by carriers management, starts from 0|
 |request.packageId|int|id of the package that sent the request|defined by the package|
 |request.packageUrl|int|url (ip+port) of the package that sent the request|read from the request|
-|request.sourceLocation|int||from 1 to 7|
-|request.targetLocation|int||from 1 to 7|
-|request.state|string|state of the request: queue, transferToSourceLocation, ...||
+|request.sourceLocation|int|id of the source location based on the predefined grid|from 1 to 7|
+|request.targetLocation|int|id of the target location based on the predefined grid|from 1 to 7|
+|request.state|string|state of the request|queue<br>transportToSourceLocation<br>sourceLocation<br>sourceDispatchPending<br>sourceDispatchFinished<br>transportToTargetLocation<br>targetLocation<br>targetDispatchPending<br>targetDispatchFinished<br>transportToParking<br>transportFinishedPending|
 |cars|array(car)|array of robot cars in operation||
 |car|JSON object of car||
 |car.id|string|unique car id|starts from 0|
-|car.url|string|car IP address on the local WiFi network|defined in the config.json file|
-|car.startLocation|number|car location when the experiment starts|1 to 4: production areas, 5, 6, 8 and 9: parking areas, 7: warehouse|
-|car.location|number|current car location|1 to 4: production areas, 5, 6, 8 and 9: parking areas, 7: warehouse|
+|car.url|string|car IP address on local WiFi network|defined in config.json file|
+|car.startLocation|number|car location when the experiment starts|1 to 4: production areas, 5: warehouse (master plant), 6, to 9: parking areas|
+|car.location|number|current car location|1 to 4: production areas, 5: warehouse (master plant), 6, to 9: parking areas|
 |car.available|boolean|availability to carry out a transfer|true / false |
+|parkingAreas|array(parkingArea)|array of parking areas in operation||
+|parkingArea|JSON object of parkingArea||
+|parkingArea.id|string|unique parkingArea id|defined by carriers management, starts from 0|
+|parkingArea.location|parkingArea location|6 to 9|
+|parkingArea.available|boolean|availability to accept a car for parking|true / false |

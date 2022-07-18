@@ -238,6 +238,7 @@ app.get('/report', function (req, res) {
                 }
             } else {
                 console.log("error, unknown state value in the /report request");
+                res.send({"state": "error, unknown state value in the /report request"})
             }
 
             // update the request data in the queue
@@ -248,7 +249,8 @@ app.get('/report', function (req, res) {
         }
     }
 
-    res.send("/report endpoint processed successfully");
+    res.send({"state": "success"});
+    console.log("/report endpoint processed successfully");
 
 });
 
