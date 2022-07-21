@@ -13,8 +13,22 @@ const config = require("./config.json");
 let cars = [];
 let requestsQueue = [];
 let parkingAreas = [];
-let parkingAreasTransfersQueue = [];
+// let parkingAreasTransfersQueue = [];
 let taskIdCounter = 0;
+
+// request states:
+// 1. queue: when the request is selected for processing, the app chooses a car and sends it to the source location
+// 2. transferToSourceLocation: the app is idle and waits for the car to send a message that is has reached the source location
+// 3. sourceLocation: car is at the source location, the app calls the source plant to dispatch a package
+// 4. sourceDispatchPending: the source plant rejected the dispatch request, try again
+// 5. sourceDispatchFinished: the package was dispatched, the app sends the car to the target location
+// 6. transferToTargetLocation: the app is idle and waits for the car to send a message that is has reached the target location
+// 7. targetLocation: car is at the target location, the app calls the target plant to dispatch a package
+// 8. targetDispatchPending: the target plant rejected the dispatch request, try again
+// 9. targetDispatchFinished: the package was dispatched, the app sends the car to the selected parking area
+// 10. transferToParking: the app is idle and waits for the car to send a message that is has reached the parking area
+// 11. parking: car is at the parking area, the app sends transportFinished message to the package
+// 12. packageResponsePending: the package rejected the transportFinished request, try again
 
 // #### API ENDPOINTS ####
 
@@ -210,6 +224,7 @@ app.get('/report', function (req, res) {
                             requestsQueue[requestIndex] = request;
                         });
                 } else if (request.state === "transferToParking") {
+                    request.state = "parking";
                     // send /transportFinished request to the package
                     console.log("axios GET request URL: " + request.packageUrl + '/transportFinished?taskId=' + request.taskId);
                     axios.get(request.packageUrl + '/transportFinished?taskId=' + request.taskId)
@@ -217,7 +232,7 @@ app.get('/report', function (req, res) {
                             // handle successful request
                             let responseData = JSON.parse(response.data);
 
-                            if (responseData.state === "OK") {
+                            if (responseData.state === "accept") {
                                 console.log("/transportFinished request successful, the transport is completed");
 
                                 // update the request data in the queue
@@ -226,6 +241,13 @@ app.get('/report', function (req, res) {
                                 let index = requestsQueue.findIndex(item => item.taskId = request.taskId);
                                 requestsQueue.splice(index, 1);
                             }
+                            else if (responseData.state === "reject") {
+                                console.log("/transportFinished request rejected");
+                                request.state = "packageResponsePending";
+                                // update the request data in the queue
+                                requestsQueue[requestIndex] = request;
+                            }
+
                         })
                         .catch(function (error) {
                             // handle error
@@ -252,6 +274,44 @@ app.get('/report', function (req, res) {
     res.send({"state": "success"});
     console.log("/report endpoint processed successfully");
 
+});
+
+// API endpoint called by a package to request a transfer
+app.get('/dispatchFinished', function (req, res) {
+
+    console.log("received a request to the endpoint /dispatchFinished");
+
+    if (!req.query.taskId) {
+        console.log("Error, missing taskId");
+        res.send({"status": "reject, missing taskId"});
+    } else {
+        // extract data from the request = task id
+        let taskId = JSON.parse(req.taskId.source);
+
+        // find the request in the requestsQueue array
+        let requestArr = requestsQueue.filter(function (request) {
+            return request.taskId === taskId;
+        });
+
+        // filter method returns array with one item - access it
+        let request = requestArr[0];
+        if (requestArr.length > 0) {
+
+            if(request.state === "sourceLocation" || request.state === "sourceDispatchPending")
+                request.state = "sourceDispatchFinished";
+            else if(request.state === "targetLocation" || request.state === "targetDispatchPending")
+                request.state = "targetDispatchFinished";
+
+            // get request index in the requestsQueue array and save the updated data
+            let requestIndex = requestsQueue.findIndex(x => x.taskId === taskId);
+            requestsQueue[requestIndex] = request;
+
+            res.send({"state": request.status});
+        } else {
+            // task not found, return error
+            res.send({"state": "error, task not found"});
+        }
+    }
 });
 
 // start the server
@@ -326,7 +386,7 @@ function selectParkingArea() {
     return parkingAreaAvailable[randomNumber];
 }
 
-// periodically check the requests queue and order a transfer to the randomly selected available robot car
+// periodically check the requests queue and order a transfer (move)
 setInterval(function () {
 
     // select a request to process --> choose from requests that are in one of three states: "queue", "sourceDispatchFinished", "targetDispatchFinished"
@@ -377,13 +437,27 @@ setInterval(function () {
                 if (parkingArea !== undefined) {
                     axiosGetUrl = car.url + '/move?sourceLocation' + car.targetLocation + '&targetLocation=' + parkingArea.location + '&taskId=' + request.taskId;
                 } else {
-                    // do nothing, make a new attempt in next setInterval iteration
+                    // there are no free parking areas --> do nothing, make a new attempt in next setInterval iteration
                     axiosGetUrl = "";
                 }
             }
+            // if the current state is a pending dispatch request at source or target plant
+            else if (request.state === "sourceDispatchPending") {
+                axiosGetUrl = config.plants[request.sourceLocation - 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId;
+            }
+            else if (request.state === "targetDispatchPending") {
+                axiosGetUrl = config.plants[request.targetLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId;
+            }
+            // if the current state is a pending transportFinished request to the package
+            else if (request.state === "packageResponsePending") {
+                axiosGetUrl = request.packageUrl + '/transportFinished?taskId=' + request.taskId;
+            }
+
+            // find the index of the request in the request array
+            let requestIndex = requestsQueue.findIndex(x => x.taskId === request.taskId);
 
             console.log("axios GET request URL: " + axiosGetUrl);
-            if (axiosGetUrl !== "") {
+            if (axiosGetUrl.includes("move")) {
                 axios.get(axiosGetUrl)
                     .then(function (response) {
                         // handle successful request
@@ -404,8 +478,6 @@ setInterval(function () {
                                 request.state = "transportToParking";
                             }
 
-                            // find the index of the request in the request array
-                            let requestIndex = requestsQueue.findIndex(x => x.taskId === request.taskId);
                             // update the request
                             requestsQueue[requestIndex] = request;
 
@@ -422,7 +494,66 @@ setInterval(function () {
                         // handle error
                         console.log("error when calling robot car " + car.id + " to url " + car.url + ": " + error);
                     });
-            } else {
+            }
+            else if (axiosGetUrl.includes("dispatch")) {
+                axios.get(axiosGetUrl)
+                    .then(function (response) {
+                        // handle successful request
+                        let responseData = JSON.parse(response.data);
+                        // the target plant rejects the request
+                        if (responseData.state === "reject") {
+
+                            console.log("target plant " + config.plants[request.targetLocation + 1].ip + " rejected the request");
+                            request.state = "targetDispatchPending";
+                        }
+                        // the target plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
+                        else {
+                            request.masterPlantDispatchId = responseData.dispatchTaskId;
+                            console.log("target plant " + config.plants[request.targetLocation + 1].ip + " accepted the request");
+                        }
+                        // update the request data in the queue
+                        requestsQueue[requestIndex] = request;
+                    })
+                    .catch(function (error) {
+                        // handle error
+                        console.log("error when calling target plant " + config.plants[request.targetLocation + 1].ip + ": " + error);
+                        request.state = "targetDispatchPending";
+                        // update the request data in the queue
+                        requestsQueue[requestIndex] = request;
+                    });
+            }
+            else if (axiosGetUrl.includes("package")) {
+                axios.get(axiosGetUrl)
+                    .then(function (response) {
+                        // handle successful request
+                        let responseData = JSON.parse(response.data);
+
+                        if (responseData.state === "accept") {
+                            console.log("/transportFinished request successful, the transport is completed");
+
+                            // update the request data in the queue
+                            requestsQueue[requestIndex] = request;
+                            // find the request in the queue and delete it
+                            let index = requestsQueue.findIndex(item => item.taskId = request.taskId);
+                            requestsQueue.splice(index, 1);
+                        }
+                        else if (responseData.state === "reject") {
+                            console.log("/transportFinished request rejected");
+                            request.state = "packageResponsePending";
+                            // update the request data in the queue
+                            requestsQueue[requestIndex] = request;
+                        }
+
+                    })
+                    .catch(function (error) {
+                        // handle error
+                        console.log("error when calling package " + request.packageUrl + ": " + error);
+
+                        request.state = "packageResponsePending";
+                        // update the request data in the queue
+                        requestsQueue[requestIndex] = request;
+                    });
+            } else if (axiosGetUrl === "") {
                 console.log("no parking area available, will try again later");
             }
         } else {

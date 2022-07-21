@@ -1,6 +1,6 @@
 # Robot Car Control Application
 
-This Node.js application controls the fleet of DF micro:Maqueen Plus EN v1 robot cars that work in a shared manufacturing setting. The application receives requests from parcels and selects a robot car that performs the transfer of the parcel from location A to location B on the pre-defined grid.
+This Node.js application controls the fleet of DF micro:Maqueen Plus EN v1 robot cars that work in a shared manufacturing setting. The application receives requests from packages and selects a robot car that performs the transfer of the package from location A to location B on the pre-defined grid.
 
 ## DFRobot micro:Maqueen Plus EN V1 Robot Car
 An Advanced STEM Education Robot with six line-tracking sensors, IR receiver, ultrasonic sensor, RGB ambient lights, LED car lights, buzzer etc.
@@ -21,7 +21,7 @@ See: https://github.com/fsprojekti/df_micro_maqueen-mbits-esp32_arduino_app
 |<code>/cars</code>|get data on active robot cars|/|array of JSON objects "car"|
 |<code>/parkingAreas</code>|get data on active parking areas|/|array of JSON objects "parkingArea"|
 |<code>/requestsQueue</code>|get data on active transfers requests|/|array of JSON objects "request"|
-|<code>/request</code>|sent by a parcel to request a transport|<code>{"packageId": id, "source": a, "target": b}</code>|{status (accept, reject), queueIndex, taskId}\
+|<code>/request</code>|sent by a package to request a transport|<code>{"packageId": id, "source": a, "target": b}</code>|{status (accept, reject), queueIndex, taskId}\
 |<code>/report</code>|sent by a car when it reaches a location|<code>{"state:" accept/reject, "taskId": </code>|{state: success/error}
 |<code>/getTask</code>|get current state of the task|<code>{"taskId": id}</code>|one of 9 states in string format|
 
