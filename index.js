@@ -75,7 +75,7 @@ app.get('/request', function (req, res) {
 
     if (!req.query.source || !req.query.target) {
         console.log("Error, missing source and/or target location and/or packageId");
-        res.send({"status": "reject, missing source and/or target location and/or packageId"});
+        res.send({"state": "reject, missing source and/or target location and/or packageId"});
     } else {
         // extract data from the request = source and target locations for the requested transfer
         let sourceLocation = JSON.parse(req.query.source);
@@ -96,7 +96,7 @@ app.get('/request', function (req, res) {
 
         console.log("Current requests queue:" + JSON.stringify(requestsQueue));
 
-        res.send({"status": "accept", "queueIndex": queueIndex, "taskId": reqObject.taskId});
+        res.send({"state": "accept", "queueIndex": queueIndex, "taskId": reqObject.taskId});
     }
 });
 
@@ -107,7 +107,7 @@ app.get('/getTask', function (req, res) {
 
     if (!req.query.taskId) {
         console.log("Error, missing taskId");
-        res.send({"status": "reject, missing taskId"});
+        res.send({"state": "reject, missing taskId"});
     } else {
         // extract data from the request = task id
         let taskId = JSON.parse(req.taskId.source);
@@ -120,7 +120,7 @@ app.get('/getTask', function (req, res) {
         // filter method returns array with one item - access it
         let request = requestArr[0];
         if (requestArr.length > 0) {
-            res.send({"state": request.status});
+            res.send({"state": request.state});
         } else {
             // task not found, return error
             res.send({"state": "error, task not found"});
@@ -173,17 +173,21 @@ app.get('/report', function (req, res) {
                         .then(function (response) {
                             // handle successful request
                             let responseData = JSON.parse(response.data);
-                            // the source plant rejects the request
-                            if (responseData.state === "reject") {
 
-                                console.log("source plant " + config.plants[request.sourceLocation - 1].ip + " rejected the request");
-                                request.state = "sourceDispatchPending";
-                            }
                             // the source plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
-                            else {
+                            if (responseData.state === "accept"){
                                 request.sourcePlantDispatchId = responseData.dispatchTaskId;
                                 console.log("source plant " + config.plants[request.sourceLocation - 1].ip + " accepted the request");
                             }
+                            // the source plant rejects the request
+                            else if (responseData.state === "reject"){
+                                console.log("source plant " + config.plants[request.sourceLocation - 1].ip + " rejected the request");
+                                request.state = "sourceDispatchPending";
+                            }
+                            else {
+                                console.log("unknown response from source plant " + config.plants[request.sourceLocation - 1].ip);
+                            }
+
                             // update the request data in the queue
                             requestsQueue[requestIndex] = request;
                         })
@@ -202,17 +206,21 @@ app.get('/report', function (req, res) {
                         .then(function (response) {
                             // handle successful request
                             let responseData = JSON.parse(response.data);
-                            // the target plant rejects the request
-                            if (responseData.state === "reject") {
 
-                                console.log("target plant " + config.plants[request.targetLocation + 1].ip + " rejected the request");
+                            // the target plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
+                            if (responseData.state === "accept"){
+                                request.sourcePlantDispatchId = responseData.dispatchTaskId;
+                                console.log("target plant " + config.plants[request.targetLocation - 1].ip + " accepted the request");
+                            }
+                            // the target plant rejects the request
+                            else if (responseData.state === "reject"){
+                                console.log("target plant " + config.plants[request.targetLocation - 1].ip + " rejected the request");
                                 request.state = "targetDispatchPending";
                             }
-                            // the target plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
                             else {
-                                request.masterPlantDispatchId = responseData.dispatchTaskId;
-                                console.log("target plant " + config.plants[request.targetLocation + 1].ip + " accepted the request");
+                                console.log("unknown response from target plant " + config.plants[request.targetLocation - 1].ip);
                             }
+
                             // update the request data in the queue
                             requestsQueue[requestIndex] = request;
                         })
@@ -232,7 +240,7 @@ app.get('/report', function (req, res) {
                             // handle successful request
                             let responseData = JSON.parse(response.data);
 
-                            if (responseData.state === "accept") {
+                            if (responseData.state === "success") {
                                 console.log("/transportFinished request successful, the transport is completed");
 
                                 // update the request data in the queue
@@ -241,7 +249,7 @@ app.get('/report', function (req, res) {
                                 let index = requestsQueue.findIndex(item => item.taskId = request.taskId);
                                 requestsQueue.splice(index, 1);
                             }
-                            else if (responseData.state === "reject") {
+                            else if (responseData.state === "error") {
                                 console.log("/transportFinished request rejected");
                                 request.state = "packageResponsePending";
                                 // update the request data in the queue
@@ -283,7 +291,7 @@ app.get('/dispatchFinished', function (req, res) {
 
     if (!req.query.taskId) {
         console.log("Error, missing taskId");
-        res.send({"status": "reject, missing taskId"});
+        res.send({"state": "reject, missing taskId"});
     } else {
         // extract data from the request = task id
         let taskId = JSON.parse(req.taskId.source);
@@ -306,7 +314,7 @@ app.get('/dispatchFinished', function (req, res) {
             let requestIndex = requestsQueue.findIndex(x => x.taskId === taskId);
             requestsQueue[requestIndex] = request;
 
-            res.send({"state": request.status});
+            res.send({"state": "success"});
         } else {
             // task not found, return error
             res.send({"state": "error, task not found"});
@@ -463,7 +471,7 @@ setInterval(function () {
                         // handle successful request
                         let responseData = JSON.parse(response.data);
                         // if the selected car is free, the transfer begins, the availability of the car must be set to false and the request is deleted from the queue
-                        if (responseData.status === "accept") {
+                        if (responseData.state === "accept") {
                             // find the index of the car in the cars array
                             let carIndex = cars.findIndex(x => x.id === car.id);
                             // update the availability parameter
@@ -528,7 +536,7 @@ setInterval(function () {
                         // handle successful request
                         let responseData = JSON.parse(response.data);
 
-                        if (responseData.state === "accept") {
+                        if (responseData.state === "success") {
                             console.log("/transportFinished request successful, the transport is completed");
 
                             // update the request data in the queue
@@ -537,7 +545,7 @@ setInterval(function () {
                             let index = requestsQueue.findIndex(item => item.taskId = request.taskId);
                             requestsQueue.splice(index, 1);
                         }
-                        else if (responseData.state === "reject") {
+                        else if (responseData.state === "error") {
                             console.log("/transportFinished request rejected");
                             request.state = "packageResponsePending";
                             // update the request data in the queue
