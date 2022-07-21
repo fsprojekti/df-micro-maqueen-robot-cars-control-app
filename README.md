@@ -13,7 +13,7 @@ See: https://github.com/fsprojekti/df_micro_maqueen-mbits-esp32_arduino_app
 
 2022 Summer School on Industrial Internet of Things and Blockchain Technology
 
-![grid-proga](https://user-images.githubusercontent.com/87708323/179540758-1d4ca449-1616-4dc1-a5a3-cfe982ef599f.png)
+![grid-proga](https://user-images.githubusercontent.com/87708323/180164381-9a6275c4-19dd-467b-b9e0-7b063ee7a87f.png)
 
 ## HTTP API
 |endpoint|description|parameters|returns|
