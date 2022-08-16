@@ -37,6 +37,7 @@ See: https://github.com/fsprojekti/df_micro_maqueen-mbits-esp32_arduino_app
 |request.sourceLocation|int|id of the source location based on the predefined grid|from 1 to 7|
 |request.targetLocation|int|id of the target location based on the predefined grid|from 1 to 7|
 |request.state|string|state of the request|queue<br>transportToSourceLocation<br>sourceLocation<br>sourceDispatchPending<br>sourceDispatchFinished<br>transportToTargetLocation<br>targetLocation<br>targetDispatchPending<br>targetDispatchFinished<br>transferToParking<br>parking<br>packageResponsePending|
+|request.carSelected|JSON object|robot car selected for the transfer||
 |cars|array(car)|array of robot cars in operation||
 |car|JSON object||
 |car.id|string|unique car id|starts from 0|
