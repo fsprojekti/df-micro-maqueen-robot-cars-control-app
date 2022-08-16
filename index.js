@@ -284,7 +284,7 @@ app.get('/report', function (req, res) {
 
 });
 
-// API endpoint called by a package to request a transfer
+// API endpoint called by a plant (warehouse or manufacturing) to inform the control app that the dispatch of the package has finished
 app.get('/dispatchFinished', function (req, res) {
 
     console.log("received a request to the endpoint /dispatchFinished");
@@ -399,8 +399,9 @@ setInterval(function () {
 
     // select a request to process --> choose from requests that are in one of three states: "queue", "sourceDispatchFinished", "targetDispatchFinished"
     // requests are processed on a FIFO (first in first out) principle
+    // TODO: a to zadošča? a moram dodat še kako stanje??
     let requestArr = requestsQueue.filter(function (request) {
-        return request.state === "queue" || request.state === "sourceDispatchFinished" || request.state === "targetDispatchFinished";
+        return request.state === "queue" || request.state === "sourceDispatchFinished" || request.state === "targetDispatchFinished" || request.state === "sourceDispatchPending" || request.state === "targetDispatchPending" || request.state === "packageResponsePending";
     });
 
     // a request was found, start processing it
@@ -415,35 +416,35 @@ setInterval(function () {
         // 4. wait for the target dispatch operation to finish
         // 5. move to parking area
 
-        // if the car is at the original location, we move the car to the request source location
-        let car;
+        // if the request is in its original state (queue ) we must select a robot car that will be perform the transport
+        //  otherwise the car has already been selected and we just use it
         if (request.state === "queue") {
 
             // select a robot car
-            car = selectCar();
-            // TODO: delete this statement, it is used later in the response from the axios GET method call
             // set which car was selected for the transfer (url of the car)
+            // request.carSelected = selectCar();
+            // TODO: delete this statement, it is used later in the response from the axios GET method call
             // carSelected is hardcoded to the localhost (for testing purposes)
             request.carSelected = config.robotCars[4].ip;
-
         }
-        // if a car was selected, proceed with the move
-        if (car !== undefined) {
 
-            console.log("selected a car:" + JSON.stringify(car));
+        // if a car was selected, proceed with the move
+        if (request.carSelected !== undefined) {
+
+            console.log("selected a car:" + JSON.stringify(request.carSelected));
 
             // build axios GET request depending on the current state of the request
             let axiosGetUrl = "";
             if (request.state === "queue") {
-                axiosGetUrl = car.url + '/move?sourceLocation' + car.location + '&targetLocation=' + request.sourceLocation + '&taskId=' + request.taskId;
+                axiosGetUrl = request.carSelected.url + '/move?sourceLocation' + request.carSelected.location + '&targetLocation=' + request.sourceLocation + '&taskId=' + request.taskId;
             } else if (request.state === "sourceDispatchFinished") {
-                axiosGetUrl = car.url + '/move?sourceLocation' + car.sourceLocation + '&targetLocation=' + request.targetLocation + '&taskId=' + request.taskId;
+                axiosGetUrl = request.carSelected.url + '/move?sourceLocation' + request.carSelected.sourceLocation + '&targetLocation=' + request.targetLocation + '&taskId=' + request.taskId;
             } else if (request.state === "targetDispatchFinished") {
                 // move the car to a free parking area
                 // select a free parking area
                 let parkingArea = selectParkingArea();
                 if (parkingArea !== undefined) {
-                    axiosGetUrl = car.url + '/move?sourceLocation' + car.targetLocation + '&targetLocation=' + parkingArea.location + '&taskId=' + request.taskId;
+                    axiosGetUrl = request.carSelected.url + '/move?sourceLocation' + request.carSelected.targetLocation + '&targetLocation=' + parkingArea.location + '&taskId=' + request.taskId;
                 } else {
                     // there are no free parking areas --> do nothing, make a new attempt in next setInterval iteration
                     axiosGetUrl = "";
@@ -473,7 +474,7 @@ setInterval(function () {
                         // if the selected car is free, the transfer begins, the availability of the car must be set to false and the request is deleted from the queue
                         if (responseData.state === "accept") {
                             // find the index of the car in the cars array
-                            let carIndex = cars.findIndex(x => x.id === car.id);
+                            let carIndex = cars.findIndex(x => x.id === request.carSelected.id);
                             // update the availability parameter
                             cars[carIndex].available = false;
 
@@ -485,22 +486,20 @@ setInterval(function () {
                             } else if (request.state === "targetDispatchFinished") {
                                 request.state = "transportToParking";
                             }
-
                             // update the request
                             requestsQueue[requestIndex] = request;
-
                         }
                         // the car is not available, update its availability
                         else {
                             // find the index of the car in the cars array
-                            let carIndex = cars.findIndex(x => x.id === car.id);
+                            let carIndex = cars.findIndex(x => x.id === request.carSelected.id);
                             // update the availability parameter
                             cars[carIndex].available = false;
                         }
                     })
                     .catch(function (error) {
                         // handle error
-                        console.log("error when calling robot car " + car.id + " to url " + car.url + ": " + error);
+                        console.log("error when calling robot car " + request.carSelected.id + " to url " + request.carSelected.url + ": " + error);
                     });
             }
             else if (axiosGetUrl.includes("dispatch")) {
@@ -512,12 +511,20 @@ setInterval(function () {
                         if (responseData.state === "reject") {
 
                             console.log("target plant " + config.plants[request.targetLocation + 1].ip + " rejected the request");
-                            request.state = "targetDispatchPending";
+                            // state of the request does not change
+
                         }
-                        // the target plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
+                        // the target plant accepts the request, save the dispatch task id, change the request state and wait for the dispatchFinished API endpoint call
                         else {
                             request.masterPlantDispatchId = responseData.dispatchTaskId;
                             console.log("target plant " + config.plants[request.targetLocation + 1].ip + " accepted the request");
+
+                            if(request.state === "sourceDispatchPending") {
+                                request.state = "sourceLocation";
+                            }
+                            else if (request.state === "targetDispatchPending") {
+                                request.state = "targetLocation";
+                            }
                         }
                         // update the request data in the queue
                         requestsQueue[requestIndex] = request;
@@ -539,19 +546,13 @@ setInterval(function () {
                         if (responseData.state === "success") {
                             console.log("/transportFinished request successful, the transport is completed");
 
-                            // update the request data in the queue
-                            requestsQueue[requestIndex] = request;
                             // find the request in the queue and delete it
                             let index = requestsQueue.findIndex(item => item.taskId = request.taskId);
                             requestsQueue.splice(index, 1);
                         }
                         else if (responseData.state === "error") {
                             console.log("/transportFinished request rejected");
-                            request.state = "packageResponsePending";
-                            // update the request data in the queue
-                            requestsQueue[requestIndex] = request;
                         }
-
                     })
                     .catch(function (error) {
                         // handle error

@@ -24,7 +24,7 @@ See: https://github.com/fsprojekti/df_micro_maqueen-mbits-esp32_arduino_app
 |<code>/getTask</code>|get current state of the task|<code>{"taskId": id}</code>|one of 12 states in string format|
 |<code>/request</code>|sent by a package to request a transport|<code>{"packageId": id, "source": a, "target": b}</code>|{state: accept/reject, queueIndex, taskId}\
 |<code>/report</code>|sent by a car when it reaches a location|<code>{"state:" accept/reject, "taskId": </code>|{state: success/error}|
-|<code>/dispatchFinished</code>|sent by a plant when the dispatch operation finishes|<code>{"taskId": a}</code>|{state: success/error}|
+|<code>/dispatchFinished</code>|sent by a plant when the dispatch operation finishes|<code>{"taskId": id}</code>|{state: success/error}|
 ## Variables
 
 |name|type|description|value|
@@ -36,7 +36,7 @@ See: https://github.com/fsprojekti/df_micro_maqueen-mbits-esp32_arduino_app
 |request.packageUrl|int|url (ip+port) of the package that sent the request|read from the request|
 |request.sourceLocation|int|id of the source location based on the predefined grid|from 1 to 7|
 |request.targetLocation|int|id of the target location based on the predefined grid|from 1 to 7|
-|request.state|string|state of the request|queue<br>transportToSourceLocation<br>sourceLocation<br>sourceDispatchPending<br>sourceDispatchFinished<br>transportToTargetLocation<br>targetLocation<br>targetDispatchPending<br>targetDispatchFinished<br>transportToParking<br>transportFinishedPending|
+|request.state|string|state of the request|queue<br>transportToSourceLocation<br>sourceLocation<br>sourceDispatchPending<br>sourceDispatchFinished<br>transportToTargetLocation<br>targetLocation<br>targetDispatchPending<br>targetDispatchFinished<br>transferToParking<br>parking<br>packageResponsePending|
 |cars|array(car)|array of robot cars in operation||
 |car|JSON object||
 |car.id|string|unique car id|starts from 0|
