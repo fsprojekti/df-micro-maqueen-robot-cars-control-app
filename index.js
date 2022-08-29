@@ -327,7 +327,7 @@ app.listen(config.nodejsPort, function () {
 
     //initialize an array for robot cars' data
     initCars();
-    //initialize an array for parkingAreas' data
+    //initialize an array for parkingAreas data
     initParkingAreas();
 
     console.log('Robot Cars Control Node.js server listening on port ' + config.nodejsPort + '!');
@@ -364,7 +364,7 @@ function initParkingAreas() {
 // randomly select a car for the requested transfer among the cars that are currently available
 function selectCar() {
 
-    // make a subset of cars array based on the availability
+    // make a subset of cars' array based on the availability
     let carsAvailable = cars.filter(function (car) {
         return car.available === true;
     });
@@ -416,8 +416,8 @@ setInterval(function () {
         // 4. wait for the target dispatch operation to finish
         // 5. move to parking area
 
-        // if the request is in its original state (queue ) we must select a robot car that will be perform the transport
-        //  otherwise the car has already been selected and we just use it
+        // if the request is in its original state (queue ) we must select a robot car that will be performed the transport
+        //  otherwise the car has already been selected, and we just use it
         if (request.state === "queue") {
 
             // select a robot car
