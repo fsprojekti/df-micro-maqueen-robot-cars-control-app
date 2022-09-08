@@ -168,8 +168,8 @@ app.get('/report', function (req, res) {
                     // send /dispatchRequest to the source plant
 
                     // make an axios request to the source plant HTTP API
-                    console.log("axios GET request URL: " + config.plants[request.sourceLocation - 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId);
-                    axios.get(config.plants[request.sourceLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId)
+                    console.log("axios GET request URL: " + config.plants[request.sourceLocation - 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId + '&mode=load');
+                    axios.get(config.plants[request.sourceLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId + '&mode=load')
                         .then(function (response) {
                             // handle successful request
                             let responseData = JSON.parse(response.data);
@@ -201,8 +201,8 @@ app.get('/report', function (req, res) {
                     request.state = "targetLocation";
                     // send /dispatchRequest to the target plant
                     // make an axios request to the target plant HTTP API
-                    console.log("axios GET request URL: " + config.plants[request.targetLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId);
-                    axios.get(config.plants[request.targetLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId)
+                    console.log("axios GET request URL: " + config.plants[request.targetLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId + '&mode=unload');
+                    axios.get(config.plants[request.targetLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId + '&mode=unload')
                         .then(function (response) {
                             // handle successful request
                             let responseData = JSON.parse(response.data);
@@ -452,10 +452,10 @@ setInterval(function () {
             }
             // if the current state is a pending dispatch request at source or target plant
             else if (request.state === "sourceDispatchPending") {
-                axiosGetUrl = config.plants[request.sourceLocation - 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId;
+                axiosGetUrl = config.plants[request.sourceLocation - 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId + '&mode=unload';
             }
             else if (request.state === "targetDispatchPending") {
-                axiosGetUrl = config.plants[request.targetLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId;
+                axiosGetUrl = config.plants[request.targetLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId + '&mode=load';
             }
             // if the current state is a pending transportFinished request to the package
             else if (request.state === "packageResponsePending") {
