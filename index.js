@@ -64,10 +64,19 @@ app.get('/parkingAreas', function (req, res) {
 
 });
 
+app.get('/status', function (req, res) {
+
+    console.log("received a request to the endpoint /status");
+    let packageUrl = req.ip.substring(7, req.ip.length);
+    console.log("robot car " + packageUrl + ", status: " + req.query.status);
+    res.send("ok");
+
+});
+
 // API endpoint called by a package to request a transfer
 app.get('/request', function (req, res) {
 
-    console.log("received a request to the endpoint /requestTransfer");
+    // console.log("received a request to the endpoint /requestTransfer");
 
     let packageUrl = req.ip.substring(7, req.ip.length);
 
@@ -110,7 +119,7 @@ app.get('/getTask', function (req, res) {
         res.send({"state": "reject, missing taskId"});
     } else {
         // extract data from the request = task id
-        let taskId = JSON.parse(req.taskId.source);
+        let taskId = JSON.parse(req.query.taskId);
 
         // find the car in the cars array
         let requestArr = requestsQueue.filter(function (request) {
@@ -138,8 +147,8 @@ app.get('/report', function (req, res) {
         res.send({"state": "reject, missing taskId and/or state"});
     } else {
         // extract data from the request = task id
-        let taskId = JSON.parse(req.taskId.source);
-        let state = JSON.parse(req.taskId.state);
+        let taskId = req.query.taskId;
+        let state = req.query.state;
 
         // find the request in the queue
         let requestArr = requestsQueue.filter(function (request) {
@@ -266,6 +275,9 @@ app.get('/report', function (req, res) {
                             requestsQueue[requestIndex] = request;
                         });
                 }
+                console.log("/report endpoint processed successfully");
+                res.send({"state": "success"});
+
             } else {
                 console.log("error, unknown state value in the /report request");
                 res.send({"state": "error, unknown state value in the /report request"})
@@ -275,12 +287,10 @@ app.get('/report', function (req, res) {
             requestsQueue[requestIndex] = request;
         } else {
             // task not found, return error
+            console.log("error, task not found");
             res.send({"state": "error, task not found"});
         }
     }
-
-    res.send({"state": "success"});
-    console.log("/report endpoint processed successfully");
 
 });
 
@@ -294,7 +304,7 @@ app.get('/dispatchFinished', function (req, res) {
         res.send({"state": "reject, missing taskId"});
     } else {
         // extract data from the request = task id
-        let taskId = JSON.parse(req.taskId.source);
+        let taskId = JSON.parse(req.query.taskId);
 
         // find the request in the requestsQueue array
         let requestArr = requestsQueue.filter(function (request) {
