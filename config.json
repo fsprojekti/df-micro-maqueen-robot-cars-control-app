@@ -2,7 +2,7 @@
   "robotCars": [{"ip":"192.168.0.103","startLocation": 6},
                 {"ip":"192.168.0.101","startLocation": 7},
                 {"ip":"192.168.0.102","startLocation": 8},
-                {"ip":"192.168.0.106","startLocation": 9}	],
+                {"ip":"192.168.0.106","startLocation": 9}],
   "plants": [{"ip":"192.168.0.108","location": 1},
               {"ip":"193.2.80.41","location": 2},
               {"ip":"193.2.80.42","location": 3},
