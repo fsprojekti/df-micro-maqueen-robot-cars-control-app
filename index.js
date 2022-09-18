@@ -409,7 +409,6 @@ setInterval(function () {
 
     // select a request to process --> choose from requests that are in one of three states: "queue", "sourceDispatchFinished", "targetDispatchFinished"
     // requests are processed on a FIFO (first in first out) principle
-    // TODO: a to zadošča? a moram dodat še kako stanje??
     let requestArr = requestsQueue.filter(function (request) {
         return request.state === "queue" || request.state === "sourceDispatchFinished" || request.state === "targetDispatchFinished" || request.state === "sourceDispatchPending" || request.state === "targetDispatchPending" || request.state === "packageResponsePending";
     });
@@ -432,10 +431,7 @@ setInterval(function () {
 
             // select a robot car
             // set which car was selected for the transfer (url of the car)
-            // request.carSelected = selectCar();
-            // TODO: delete this statement, it is used later in the response from the axios GET method call
-            // carSelected is hardcoded to the localhost (for testing purposes)
-            request.carSelected = config.robotCars[4].ip;
+            request.carSelected = selectCar();
         }
 
         // if a car was selected, proceed with the move
