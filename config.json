@@ -4,9 +4,9 @@
                 {"ip":"192.168.0.102","startLocation": 8},
                 {"ip":"192.168.0.106","startLocation": 9}],
   "plants": [{"ip":"192.168.0.108","location": 1},
-              {"ip":"193.2.80.41","location": 2},
-              {"ip":"193.2.80.42","location": 3},
-              {"ip":"193.2.80.43","location": 4},
+              {"ip":"192.168.0.107","location": 2},
+              {"ip":"192.168.0.105","location": 3},
+              {"ip":"192.168.0.144","location": 4},
               {"ip":"192.168.0.104","location": 5}],
   "parkingAreasLocations": [6,7,8,9],
   "nodejsPort": 3000

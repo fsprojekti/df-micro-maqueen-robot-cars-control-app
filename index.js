@@ -13,8 +13,6 @@ const config = require("./config.json");
 let cars = [];
 let requestsQueue = [];
 let parkingAreas = [];
-// let parkingAreasTransfersQueue = [];
-let taskIdCounter = 0;
 
 // request states:
 // 1. queue: when the request is selected for processing, the app chooses a car and sends it to the source location
@@ -82,19 +80,19 @@ app.get('/request', function (req, res) {
 
     console.log("received a request to the endpoint /requestTransfer from URL: " + packageUrl);
 
-    if (!req.query.source || !req.query.target) {
-        console.log("Error, missing source and/or target location and/or packageId");
-        res.send({"state": "reject, missing source and/or target location and/or packageId"});
+    if (!req.query.source || !req.query.target || !req.query.packageId || !req.query.offerId) {
+        console.log("Error, missing source and/or target location and/or offerId and/or offerId");
+        res.send({"state": "reject, missing source and/or target location and/or packageId and/or offerId"});
     } else {
         // extract data from the request = source and target locations for the requested transfer
         let sourceLocation = JSON.parse(req.query.source);
         let targetLocation = JSON.parse(req.query.target);
         let packageId = JSON.parse(req.query.packageId);
+        let offerId = JSON.parse(req.query.offerId);
 
         // create a request object and add it to the queue
         let reqObject = {}
-        reqObject.taskId = taskIdCounter;
-        taskIdCounter++;
+        reqObject.offerId = offerId;
         reqObject.packageId = packageId;
         reqObject.packageUrl = packageUrl;
         reqObject.sourceLocation = sourceLocation;
@@ -105,7 +103,7 @@ app.get('/request', function (req, res) {
 
         console.log("Current requests queue:" + JSON.stringify(requestsQueue));
 
-        res.send({"state": "accept", "queueIndex": queueIndex, "taskId": reqObject.taskId});
+        res.send({"state": "accept", "queueIndex": queueIndex, "offerId": reqObject.offerId});
     }
 });
 
@@ -114,16 +112,16 @@ app.get('/getTask', function (req, res) {
 
     console.log("received a request to the endpoint /getTask");
 
-    if (!req.query.taskId) {
-        console.log("Error, missing taskId");
-        res.send({"state": "reject, missing taskId"});
+    if (!req.query.offerId) {
+        console.log("Error, missing offerId");
+        res.send({"state": "reject, missing offerId"});
     } else {
         // extract data from the request = task id
-        let taskId = JSON.parse(req.query.taskId);
+        let offerId = JSON.parse(req.query.offerId);
 
         // find the car in the cars array
         let requestArr = requestsQueue.filter(function (request) {
-            return request.taskId === taskId;
+            return request.offerId === offerId;
         });
 
         // filter method returns array with one item - access it
@@ -138,6 +136,7 @@ app.get('/getTask', function (req, res) {
 });
 
 // API endpoint called by a car that he has reached the location
+// NOTE: when a car app is called to start the move the taskId used as a parameter is actually a offerId
 app.get('/report', function (req, res) {
 
     console.log("received a request to the endpoint /report");
@@ -152,13 +151,13 @@ app.get('/report', function (req, res) {
 
         // find the request in the queue
         let requestArr = requestsQueue.filter(function (request) {
-            return request.taskId === taskId;
+            return request.offerId === taskId;
         });
         if (requestArr.length > 0) {
             // filter method returns array with one item - access it
             let request = requestArr[0];
             // find the index of the request in the queue
-            let requestIndex = requestsQueue.findIndex(item => item.taskId = taskId);
+            let requestIndex = requestsQueue.findIndex(item => item.offerId = taskId);
 
             // if there was an error while moving the car, we revert the state of the request to the previous one, to allow for a new attempt to move the package
             if (state === "error") {
@@ -177,15 +176,15 @@ app.get('/report', function (req, res) {
                     // send /dispatchRequest to the source plant
 
                     // make an axios request to the source plant HTTP API
-                    console.log("axios GET request URL: " + config.plants[request.sourceLocation - 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId + '&mode=load');
-                    axios.get(config.plants[request.sourceLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId + '&mode=load')
+                    console.log("axios GET request URL: " + config.plants[request.sourceLocation - 1].ip + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=load');
+                    axios.get(config.plants[request.sourceLocation + 1].ip + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=load')
                         .then(function (response) {
                             // handle successful request
                             let responseData = JSON.parse(response.data);
 
                             // the source plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
                             if (responseData.state === "accept"){
-                                request.sourcePlantDispatchId = responseData.dispatchTaskId;
+                                // request.sourcePlantDispatchId = responseData.dispatchTaskId;
                                 console.log("source plant " + config.plants[request.sourceLocation - 1].ip + " accepted the request");
                             }
                             // the source plant rejects the request
@@ -210,15 +209,15 @@ app.get('/report', function (req, res) {
                     request.state = "targetLocation";
                     // send /dispatchRequest to the target plant
                     // make an axios request to the target plant HTTP API
-                    console.log("axios GET request URL: " + config.plants[request.targetLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId + '&mode=unload');
-                    axios.get(config.plants[request.targetLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId + '&mode=unload')
+                    console.log("axios GET request URL: " + config.plants[request.targetLocation + 1].ip + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=unload');
+                    axios.get(config.plants[request.targetLocation + 1].ip + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=unload')
                         .then(function (response) {
                             // handle successful request
                             let responseData = JSON.parse(response.data);
 
                             // the target plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
                             if (responseData.state === "accept"){
-                                request.sourcePlantDispatchId = responseData.dispatchTaskId;
+                                // request.sourcePlantDispatchId = responseData.dispatchTaskId;
                                 console.log("target plant " + config.plants[request.targetLocation - 1].ip + " accepted the request");
                             }
                             // the target plant rejects the request
@@ -243,8 +242,8 @@ app.get('/report', function (req, res) {
                 } else if (request.state === "transferToParking") {
                     request.state = "parking";
                     // send /transportFinished request to the package
-                    console.log("axios GET request URL: " + request.packageUrl + '/transportFinished?taskId=' + request.taskId);
-                    axios.get(request.packageUrl + '/transportFinished?taskId=' + request.taskId)
+                    console.log("axios GET request URL: " + request.packageUrl + '/transportFinished?offerId=' + request.offerId);
+                    axios.get(request.packageUrl + '/transportFinished?offerId=' + request.offerId)
                         .then(function (response) {
                             // handle successful request
                             let responseData = JSON.parse(response.data);
@@ -255,7 +254,7 @@ app.get('/report', function (req, res) {
                                 // update the request data in the queue
                                 requestsQueue[requestIndex] = request;
                                 // find the request in the queue and delete it
-                                let index = requestsQueue.findIndex(item => item.taskId = request.taskId);
+                                let index = requestsQueue.findIndex(item => item.offerId = request.offerId);
                                 requestsQueue.splice(index, 1);
                             }
                             else if (responseData.state === "error") {
@@ -299,16 +298,16 @@ app.get('/dispatchFinished', function (req, res) {
 
     console.log("received a request to the endpoint /dispatchFinished");
 
-    if (!req.query.taskId) {
-        console.log("Error, missing taskId");
-        res.send({"state": "reject, missing taskId"});
+    if (!req.query.offerId) {
+        console.log("Error, missing offerId");
+        res.send({"state": "reject, missing offerId"});
     } else {
         // extract data from the request = task id
-        let taskId = JSON.parse(req.query.taskId);
+        let offerId = JSON.parse(req.query.offerId);
 
         // find the request in the requestsQueue array
         let requestArr = requestsQueue.filter(function (request) {
-            return request.taskId === taskId;
+            return request.offerId === offerId;
         });
 
         // filter method returns array with one item - access it
@@ -321,7 +320,7 @@ app.get('/dispatchFinished', function (req, res) {
                 request.state = "targetDispatchFinished";
 
             // get request index in the requestsQueue array and save the updated data
-            let requestIndex = requestsQueue.findIndex(x => x.taskId === taskId);
+            let requestIndex = requestsQueue.findIndex(x => x.offerId === offerId);
             requestsQueue[requestIndex] = request;
 
             res.send({"state": "success"});
@@ -442,15 +441,15 @@ setInterval(function () {
             // build axios GET request depending on the current state of the request
             let axiosGetUrl = "";
             if (request.state === "queue") {
-                axiosGetUrl = request.carSelected.url + '/move?sourceLocation' + request.carSelected.location + '&targetLocation=' + request.sourceLocation + '&taskId=' + request.taskId;
+                axiosGetUrl = request.carSelected.url + '/move?sourceLocation' + request.carSelected.location + '&targetLocation=' + request.sourceLocation + '&offerId=' + request.offerId;
             } else if (request.state === "sourceDispatchFinished") {
-                axiosGetUrl = request.carSelected.url + '/move?sourceLocation' + request.carSelected.sourceLocation + '&targetLocation=' + request.targetLocation + '&taskId=' + request.taskId;
+                axiosGetUrl = request.carSelected.url + '/move?sourceLocation' + request.carSelected.sourceLocation + '&targetLocation=' + request.targetLocation + '&offerId=' + request.offerId;
             } else if (request.state === "targetDispatchFinished") {
                 // move the car to a free parking area
                 // select a free parking area
                 let parkingArea = selectParkingArea();
                 if (parkingArea !== undefined) {
-                    axiosGetUrl = request.carSelected.url + '/move?sourceLocation' + request.carSelected.targetLocation + '&targetLocation=' + parkingArea.location + '&taskId=' + request.taskId;
+                    axiosGetUrl = request.carSelected.url + '/move?sourceLocation' + request.carSelected.targetLocation + '&targetLocation=' + parkingArea.location + '&offerId=' + request.offerId;
                 } else {
                     // there are no free parking areas --> do nothing, make a new attempt in next setInterval iteration
                     axiosGetUrl = "";
@@ -458,18 +457,18 @@ setInterval(function () {
             }
             // if the current state is a pending dispatch request at source or target plant
             else if (request.state === "sourceDispatchPending") {
-                axiosGetUrl = config.plants[request.sourceLocation - 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId + '&mode=unload';
+                axiosGetUrl = config.plants[request.sourceLocation - 1].ip + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=unload';
             }
             else if (request.state === "targetDispatchPending") {
-                axiosGetUrl = config.plants[request.targetLocation + 1].ip + '/dispatch?taskId=' + request.taskId + '&packageId=' + request.packageId + '&mode=load';
+                axiosGetUrl = config.plants[request.targetLocation + 1].ip + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=load';
             }
             // if the current state is a pending transportFinished request to the package
             else if (request.state === "packageResponsePending") {
-                axiosGetUrl = request.packageUrl + '/transportFinished?taskId=' + request.taskId;
+                axiosGetUrl = request.packageUrl + '/transportFinished?offerId=' + request.offerId;
             }
 
             // find the index of the request in the request array
-            let requestIndex = requestsQueue.findIndex(x => x.taskId === request.taskId);
+            let requestIndex = requestsQueue.findIndex(x => x.offerId === request.offerId);
 
             console.log("axios GET request URL: " + axiosGetUrl);
             if (axiosGetUrl.includes("move")) {
@@ -522,7 +521,7 @@ setInterval(function () {
                         }
                         // the target plant accepts the request, save the dispatch task id, change the request state and wait for the dispatchFinished API endpoint call
                         else {
-                            request.masterPlantDispatchId = responseData.dispatchTaskId;
+                            // request.masterPlantDispatchId = responseData.dispatchTaskId;
                             console.log("target plant " + config.plants[request.targetLocation + 1].ip + " accepted the request");
 
                             if(request.state === "sourceDispatchPending") {
@@ -553,7 +552,7 @@ setInterval(function () {
                             console.log("/transportFinished request successful, the transport is completed");
 
                             // find the request in the queue and delete it
-                            let index = requestsQueue.findIndex(item => item.taskId = request.taskId);
+                            let index = requestsQueue.findIndex(item => item.offerId = request.offerId);
                             requestsQueue.splice(index, 1);
                         }
                         else if (responseData.state === "error") {
