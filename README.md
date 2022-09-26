@@ -29,7 +29,7 @@ See: https://github.com/fsprojekti/df_micro_maqueen-mbits-esp32_arduino_app
 | <code>/requestsQueue</code>    | get data on active transfers requests                | /                                                        | array of JSON objects "request"              |
 | <code>/getOffer</code>         | get current state of the offer                       | <code>{"offerId": id}</code>                             | one of 12 states in string format            |
 | <code>/request</code>          | sent by a package to request a transport             | <code>{"packageId": id, "source": a, "target": b}</code> | {state: accept/reject, queueIndex, offerId}\ |
-| <code>/report</code>           | sent by a car when it reaches a location             | <code>{"state:" accept/reject, "offerId": id </code>     | {state: success/error}                       |
+| <code>/report</code>           | sent by a car when it reaches a location             | <code>{"state:" accept/reject, "taskId": id </code>      | {state: success/error}                       |
 | <code>/dispatchFinished</code> | sent by a plant when the dispatch operation finishes | <code>{"offerId": id}</code>                             | {state: success/error}                       |
 
 ## Variables
@@ -57,3 +57,15 @@ See: https://github.com/fsprojekti/df_micro_maqueen-mbits-esp32_arduino_app
 | parkingArea.id         | string             | unique parkingArea id                                  | defined by carriers management, starts from 0                                                                                                                                                                                                                       |
 | parkingArea.location   | int                | parkingArea location                                   | 6 to 9                                                                                                                                                                                                                                                              |
 | parkingArea.available  | boolean            | availability to accept a car for parking               | true / false                                                                                                                                                                                                                                                        |
+
+## State of the application after 2022 Summer School on IIoT and blockchain
+* updated robot cars' and manufacturing units' URLs 
+* package requests include an **offerId** which is used in further communication with robot cars and manufacturing units instead of taskId
+* HTTP API endpoints:
+  * <code>/</code>, <code>/requestsQueue</code>, <code>/cars</code>, <code>/parkingAreas</code>, <code>/getTask</code>: tested, working OK
+  * <code>/request</code>: tested, fully functional  
+  * <code>/report</code>: tested, fully functional, robot cars send request with taskId, internally this is converted to offerId
+  * <code>/dispatchFinished</code>: tested, fully functional
+* requestQueue processing: tested, working ok
+  * manufacturing units response to the <code>/dispatch</code> request return an object with a **status** name instead of state
+* other functionalities work as planned 
