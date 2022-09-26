@@ -62,15 +62,6 @@ app.get('/parkingAreas', function (req, res) {
 
 });
 
-app.get('/status', function (req, res) {
-
-    console.log("received a request to the endpoint /status");
-    let packageUrl = req.ip.substring(7, req.ip.length);
-    console.log("robot car " + packageUrl + ", status: " + req.query.status);
-    res.send("ok");
-
-});
-
 // API endpoint called by a package to request a transfer
 app.get('/request', function (req, res) {
 
@@ -176,8 +167,8 @@ app.get('/report', function (req, res) {
                     // send /dispatchRequest to the source plant
 
                     // make an axios request to the source plant HTTP API
-                    console.log("axios GET request URL: " + config.plants[request.sourceLocation - 1].ip + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=unload');
-                    axios.get(config.plants[request.sourceLocation - 1].ip + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=unload')
+                    console.log("axios GET request URL: " + config.plants[request.sourceLocation - 1].url + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=unload');
+                    axios.get(config.plants[request.sourceLocation - 1].url + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=unload')
                         .then(function (response) {
                             // handle successful request
                             let responseData = response.data;
@@ -186,14 +177,14 @@ app.get('/report', function (req, res) {
                             // the source plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
                             if (responseData.status === "accept") {
                                 // request.sourcePlantDispatchId = responseData.dispatchTaskId;
-                                console.log("source plant " + config.plants[request.sourceLocation - 1].ip + " accepted the request");
+                                console.log("source plant " + config.plants[request.sourceLocation - 1].url + " accepted the request");
                             }
                             // the source plant rejects the request
                             else if (responseData.status === "reject") {
-                                console.log("source plant " + config.plants[request.sourceLocation - 1].ip + " rejected the request");
+                                console.log("source plant " + config.plants[request.sourceLocation - 1].url + " rejected the request");
                                 request.state = "sourceDispatchPending";
                             } else {
-                                console.log("unknown response from source plant " + config.plants[request.sourceLocation - 1].ip);
+                                console.log("unknown response from source plant " + config.plants[request.sourceLocation - 1].url);
                             }
 
                             // update the request data in the queue
@@ -201,7 +192,7 @@ app.get('/report', function (req, res) {
                         })
                         .catch(function (error) {
                             // handle error
-                            console.log("error when calling source plant " + config.plants[request.sourceLocation - 1].ip + ": " + error);
+                            console.log("error when calling source plant " + config.plants[request.sourceLocation - 1].url + ": " + error);
                             request.state = "sourceDispatchPending";
                         });
 
@@ -209,8 +200,8 @@ app.get('/report', function (req, res) {
                     request.state = "targetLocation";
                     // send /dispatchRequest to the target plant
                     // make an axios request to the target plant HTTP API
-                    console.log("axios GET request URL: " + config.plants[request.targetLocation - 1].ip + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=load');
-                    axios.get(config.plants[request.targetLocation - 1].ip + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=load')
+                    console.log("axios GET request URL: " + config.plants[request.targetLocation - 1].url + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=load');
+                    axios.get(config.plants[request.targetLocation - 1].url + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=load')
                         .then(function (response) {
                             // handle successful request
                             let responseData = response.data;
@@ -218,14 +209,14 @@ app.get('/report', function (req, res) {
                             // the target plant accepts the request, save the dispatch task id and wait for the dispatchFinished message
                             if (responseData.status === "accept") {
                                 // request.sourcePlantDispatchId = responseData.dispatchTaskId;
-                                console.log("target plant " + config.plants[request.targetLocation - 1].ip + " accepted the request");
+                                console.log("target plant " + config.plants[request.targetLocation - 1].url + " accepted the request");
                             }
                             // the target plant rejects the request
                             else if (responseData.status === "reject") {
-                                console.log("target plant " + config.plants[request.targetLocation - 1].ip + " rejected the request");
+                                console.log("target plant " + config.plants[request.targetLocation - 1].url + " rejected the request");
                                 request.state = "targetDispatchPending";
                             } else {
-                                console.log("unknown response from target plant " + config.plants[request.targetLocation - 1].ip);
+                                console.log("unknown response from target plant " + config.plants[request.targetLocation - 1].url);
                             }
 
                             // update the request data in the queue
@@ -233,7 +224,7 @@ app.get('/report', function (req, res) {
                         })
                         .catch(function (error) {
                             // handle error
-                            console.log("error when calling target plant " + config.plants[request.targetLocation - 1].ip + ": " + error);
+                            console.log("error when calling target plant " + config.plants[request.targetLocation - 1].url + ": " + error);
                             request.state = "targetDispatchPending";
                             // update the request data in the queue
                             requestsQueue[requestIndex] = request;
@@ -348,7 +339,7 @@ function initCars() {
     for (let i = 0; i < config.robotCars.length; i++) {
         let car = {};
         car.id = i + 1;
-        car.url = config.robotCars[i].ip;
+        car.url = config.robotCars[i].url;
         car.startLocation = config.robotCars[i].startLocation;
         car.location = config.robotCars[i].startLocation;
         car.available = true;
@@ -458,9 +449,9 @@ setInterval(function () {
             }
             // if the current state is a pending dispatch request at source or target plant
             else if (request.state === "sourceDispatchPending") {
-                axiosGetUrl = config.plants[request.sourceLocation - 1].ip + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=unload';
+                axiosGetUrl = config.plants[request.sourceLocation - 1].url + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=unload';
             } else if (request.state === "targetDispatchPending") {
-                axiosGetUrl = config.plants[request.targetLocation - 1].ip + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=load';
+                axiosGetUrl = config.plants[request.targetLocation - 1].url + '/dispatch?offerId=' + request.offerId + '&packageId=' + request.packageId + '&mode=load';
             }
             // if the current state is a pending transportFinished request to the package
             else if (request.state === "packageResponsePending") {
@@ -520,14 +511,14 @@ setInterval(function () {
                         // the target plant rejects the request
                         if (responseData.status === "reject") {
 
-                            console.log("target plant " + config.plants[request.targetLocation - 1].ip + " rejected the request");
+                            console.log("target plant " + config.plants[request.targetLocation - 1].url + " rejected the request");
                             // state of the request does not change
 
                         }
                         // the target plant accepts the request, save the dispatch task id, change the request state and wait for the dispatchFinished API endpoint call
                         else {
                             // request.masterPlantDispatchId = responseData.dispatchTaskId;
-                            console.log("target plant " + config.plants[request.targetLocation - 1].ip + " accepted the request");
+                            console.log("target plant " + config.plants[request.targetLocation - 1].url + " accepted the request");
 
                             if (request.state === "sourceDispatchPending") {
                                 request.state = "sourceLocation";
@@ -540,7 +531,7 @@ setInterval(function () {
                     })
                     .catch(function (error) {
                         // handle error
-                        console.log("error when calling target plant " + config.plants[request.targetLocation - 1].ip + ": " + error);
+                        console.log("error when calling target plant " + config.plants[request.targetLocation - 1].url + ": " + error);
                         request.state = "targetDispatchPending";
                         // update the request data in the queue
                         requestsQueue[requestIndex] = request;
