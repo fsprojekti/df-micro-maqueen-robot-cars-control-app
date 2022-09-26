@@ -65,7 +65,7 @@ app.get('/parkingAreas', function (req, res) {
 // API endpoint called by a package to request a transfer
 app.get('/request', function (req, res) {
 
-    let packageUrl = req.ip.substring(7, req.ip.length);;
+    let packageUrl = req.ip.substring(7, req.ip.length);
     console.log("received a request to the endpoint /requestTransfer from URL: " + packageUrl);
 
     if (!req.query.source || !req.query.target || !req.query.packageId || !req.query.offerId) {
@@ -538,7 +538,7 @@ setInterval(function () {
                     });
             } else if (axiosGetUrl.includes("package")) {
                 axios.get(axiosGetUrl)
-                    .then(function (response) {
+                    .then(function () {
                         // handle successful request
 
                         console.log("/transportFinished request successful, the transport is completed");
