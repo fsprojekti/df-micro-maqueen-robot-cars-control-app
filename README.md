@@ -60,12 +60,12 @@ See: https://github.com/fsprojekti/df_micro_maqueen-mbits-esp32_arduino_app
 
 ## State of the application after 2022 Summer School on IIoT and blockchain
 * updated robot cars' and manufacturing units' URLs 
-* package requests include an **offerId** which is used in further communication with robot cars and manufacturing units instead of taskId
+* requests from packages now include an **offerId** which is used in further communication with robot cars and manufacturing units instead of taskId
 * HTTP API endpoints:
   * <code>/</code>, <code>/requestsQueue</code>, <code>/cars</code>, <code>/parkingAreas</code>, <code>/getTask</code>: tested, working OK
   * <code>/request</code>: tested, fully functional  
-  * <code>/report</code>: tested, fully functional, robot cars send request with taskId, internally this is converted to offerId
+  * <code>/report</code>: tested, fully functional, robot cars still send requests with taskId and internally this gets converted to offerId
   * <code>/dispatchFinished</code>: tested, fully functional
 * requestQueue processing: tested, working ok
-  * manufacturing units response to the <code>/dispatch</code> request return an object with a **status** name instead of state
+  * manufacturing units' response to the <code>/dispatch</code> request return an object with a **status** name instead of state
 * other functionalities work as planned 
