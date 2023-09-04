@@ -95,7 +95,7 @@ app.get('/request', function (req, res) {
     }
 });
 
-// API endpoint called by a package to request a transfer
+// API endpoint called by a package to request the current state of the task
 app.get('/getTask', function (req, res) {
 
     console.log("received a request to the endpoint /getTask");
@@ -377,7 +377,6 @@ function selectCar() {
     return carsAvailable[randomNumber];
 }
 
-
 // randomly select a parking area among the areas that are currently available
 function selectParkingArea() {
 
@@ -397,7 +396,7 @@ function selectParkingArea() {
 // periodically check the requests queue and order a transfer (move)
 setInterval(function () {
 
-    // select a request to process --> choose from requests that are in one of three states: "queue", "sourceDispatchFinished", "targetDispatchFinished"
+    // select a request to process --> choose from requests that are in one of three states: "queue", "sourceDispatchFinished", "targetDispatchFinished", sourceDispatchPending, targetDispatchPending, packageResponsePending
     // requests are processed on a FIFO (first in first out) principle
     let requestArr = requestsQueue.filter(function (request) {
         return request.state === "queue" || request.state === "sourceDispatchFinished" || request.state === "targetDispatchFinished" || request.state === "sourceDispatchPending" || request.state === "targetDispatchPending" || request.state === "packageResponsePending";
@@ -419,7 +418,6 @@ setInterval(function () {
         // if the request is in its original state (queue ) we must select a robot car that will be performed the transport
         //  otherwise the car has already been selected, and we just use it
         if (request.state === "queue") {
-
             // select a robot car
             // set which car was selected for the transfer (url of the car)
             request.carSelected = selectCar();
