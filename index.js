@@ -66,7 +66,7 @@ app.get('/parkingAreas', function (req, res) {
 app.get('/request', function (req, res) {
 
     let packageUrl = req.ip.substring(7, req.ip.length);
-    console.log("received a request to the endpoint /requestTransfer from URL: " + packageUrl);
+    console.log("received a request to the endpoint /requestTransfer from URL: " + req.ip);
 
     if (!req.query.source || !req.query.target || !req.query.packageId || !req.query.offerId) {
         console.log("Error, missing source and/or target location and/or offerId and/or offerId");
@@ -78,20 +78,32 @@ app.get('/request', function (req, res) {
         let offerId = req.query.offerId;
         let packageId = req.query.packageId;
 
-        // create a request object and add it to the queue
-        let reqObject = {}
-        reqObject.offerId = offerId;
-        reqObject.packageId = packageId;
-        reqObject.packageUrl = "http://" + packageUrl + ":3000";
-        reqObject.sourceLocation = sourceLocation;
-        reqObject.targetLocation = targetLocation;
-        reqObject.state = "queue"; // "queue": waiting in the queue; "done": a car has reached the target location
+        // check if a request for this packageId is already in the queue
+        let requestArr = requestsQueue.filter(function (request) {
+            return request.packageId === packageId;
+        });
+        // console.log(requestsQueue);
+        // console.log(requestArr);
+        if(requestArr.length === 0)
+        {
+            // create a request object and add it to the queue
+            let reqObject = {}
+            reqObject.offerId = offerId;
+            reqObject.packageId = packageId;
+            reqObject.packageUrl = "http://" + packageUrl + ":3000";
+            reqObject.sourceLocation = sourceLocation;
+            reqObject.targetLocation = targetLocation;
+            reqObject.state = "queue"; // "queue": waiting in the queue; "done": a car has reached the target location
+            let queueIndex = requestsQueue.push(reqObject);
 
-        let queueIndex = requestsQueue.push(reqObject);
+            // console.log("Current requests queue:" + JSON.stringify(requestsQueue));
 
-        console.log("Current requests queue:" + JSON.stringify(requestsQueue));
-
-        res.send({"state": "accept", "queueIndex": queueIndex, "offerId": reqObject.offerId});
+            res.send({"state": "accept", "queueIndex": queueIndex, "offerId": reqObject.offerId});
+        }
+        else {
+            console.log("a request for this package is already in the queue, request rejected");
+            res.send({"state": "reject, request for this package already in the queue"});
+        }
     }
 });
 
