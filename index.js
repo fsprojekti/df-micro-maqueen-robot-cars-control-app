@@ -418,7 +418,7 @@ setInterval(function () {
     if (requestArr.length > 0) {
         // filter method returns array with one item - access it
         let request = requestArr[0];
-        console.log("processing request: ", request);
+        console.log("processing request: ", request.offerId);
 
         // move procedure:
         // 1. move the car from its current location to the request source location (master plant or manufacturing plant)
@@ -433,12 +433,12 @@ setInterval(function () {
             // select a robot car
             // set which car was selected for the transfer (url of the car)
             request.carSelected = selectCar();
-            console.log("selected a car:" + JSON.stringify(request.carSelected));
         }
 
         // if a car was selected, proceed with the move
         if (request.carSelected !== undefined) {
 
+            console.log("selected a car:" + JSON.stringify(request.carSelected));
             // build axios GET request depending on the current state of the request
             let axiosGetUrl = "";
             if (request.state === "queue") {
